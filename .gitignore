@@ -1,0 +1,31 @@
+# Secretos y configuración local: nunca se suben
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.publishsettings
+*.tfvars
+*.tfvars.json
+!example.tfvars
+secrets/
+
+# Estado y caché de herramientas de infraestructura
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+.azure/
+.bicep/
+
+# Registros y temporales
+*.log
+*.tmp
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
