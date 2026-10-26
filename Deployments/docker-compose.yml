@@ -1,0 +1,67 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tcgcommunity}
+      POSTGRES_USER: ${POSTGRES_USER:-tcg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - backend-network
+
+  backend:
+    image: ${BACKEND_IMAGE:-tcg-community-back:1.0.0}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?Debes definir SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tcgcommunity}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-tcg}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend-network
+      - frontend-network
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-tcgcommunity-front-app:1.0.0}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
+      API_DEV: ${API_DEV:-}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - frontend-network
+
+volumes:
+  pgdata:
+
+networks:
+  backend-network:
+    driver: bridge
+  frontend-network:
+    driver: bridge

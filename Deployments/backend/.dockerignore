@@ -1,0 +1,27 @@
+
+# Control de versiones y herramientas
+.git
+.git/**
+.idea/
+.vscode/
+*.iml
+
+# Artefactos Maven
+target/
+
+# Variables de entorno y secretos
+.env
+.env.*
+.env.local
+
+# Certificados y claves
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Logs y archivos del sistema
+*.log
+.DS_Store
