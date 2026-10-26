@@ -29,3 +29,6 @@ crash.log
 .idea/
 .DS_Store
 Thumbs.db
+
+# Certificados de desarrollo
+nginx/certs/*.pem

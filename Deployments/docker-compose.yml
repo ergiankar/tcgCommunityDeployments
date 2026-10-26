@@ -1,5 +1,20 @@
 
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: tcg-community-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - tcg-network
   postgres:
     image: postgres:16-alpine
     environment:
@@ -20,7 +35,7 @@ services:
       start_period: 5s
     restart: unless-stopped
     networks:
-      - backend-network
+      - tcg-network
 
   backend:
     image: ${BACKEND_IMAGE:-tcg-community-back:1.0.0}
@@ -37,9 +52,10 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    expose:
+      - "8080"
     networks:
-      - backend-network
-      - frontend-network
+      - tcg-network
 
   frontend:
     image: ${FRONTEND_IMAGE:-tcgcommunity-front-app:1.0.0}
@@ -54,14 +70,14 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    expose:
+      - "3000"
     networks:
-      - frontend-network
+      - tcg-network
 
 volumes:
   pgdata:
 
 networks:
-  backend-network:
-    driver: bridge
-  frontend-network:
+  tcg-network:
     driver: bridge

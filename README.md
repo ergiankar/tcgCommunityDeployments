@@ -37,3 +37,10 @@ Cosas que ya sabemos de la aplicación y que afectan al despliegue:
 - **Nunca se suben secretos:** contraseñas, claves, cadenas de conexión ni tokens. El `.gitignore` bloquea los ficheros habituales, pero no sustituye al cuidado.
 - La rama principal es `main`.
 - Los commits son pequeños y con un mensaje que diga qué cambia.
+
+## Comando de ejcución
+
+- docker compose \
+-  --env-file Deployments/.env \
+-  -f Deployments/docker-compose.yml \
+-  up -d
