@@ -40,7 +40,4 @@ Cosas que ya sabemos de la aplicación y que afectan al despliegue:
 
 ## Comando de ejcución
 
-- docker compose \
--  --env-file Deployments/.env \
--  -f Deployments/docker-compose.yml \
--  up -d
+- docker compose --env-file Deployments/.env -f Deployments/docker-compose.yml up -d

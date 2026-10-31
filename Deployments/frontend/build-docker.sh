@@ -11,7 +11,7 @@ FRONTEND_REPO_URL="git@github.com:ergiankar/tcgCommunity.git"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 
 # Configuración de la imagen
-IMAGE_NAME="${IMAGE_NAME:-tcgcommunity-front-app}"
+IMAGE_NAME="${IMAGE_NAME:-ghcr.io/alemsevilla/tcgcommunity-front-app}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 DOCKERFILE="${SCRIPT_DIR}/Dockerfile"
@@ -74,10 +74,11 @@ echo
 echo "Construyendo imagen: $IMAGE"
 echo "Commit del frontend: $COMMIT"
 
-docker build \
-  --pull \
+docker buildx build \
+  --platform linux/amd64 \
   --file "$DOCKERFILE" \
   --tag "$IMAGE" \
+  --push \
   "$SOURCE_DIR"
 
 echo

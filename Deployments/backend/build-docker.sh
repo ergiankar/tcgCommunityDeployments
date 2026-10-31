@@ -10,7 +10,7 @@ BACKEND_REPO_URL="git@github.com:ergiankar/tcgCommunityBackend.git"
 GIT_BRANCH="${GIT_BRANCH:-main}"
 
 # Imagen Docker
-IMAGE_NAME="${IMAGE_NAME:-tcgcommunity-backend-app}"
+IMAGE_NAME="${IMAGE_NAME:-ghcr.io/alemsevilla/tcgcommunity-backend-app}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
 DOCKERFILE="${SCRIPT_DIR}/Dockerfile"
@@ -83,10 +83,11 @@ echo "Construyendo imagen: $IMAGE"
 echo "Directorio Maven: $BACKEND_PROJECT_DIR"
 echo "Commit del backend: $COMMIT"
 
-docker build \
-  --pull \
+docker buildx build  \
+  --platform linux/amd64 \
   --file "$DOCKERFILE" \
   --tag "$IMAGE" \
+  --push \
   "$BACKEND_PROJECT_DIR"
 
 echo

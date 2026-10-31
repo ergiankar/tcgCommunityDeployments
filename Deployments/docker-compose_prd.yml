@@ -1,0 +1,120 @@
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: tcg-community-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - tcg-network
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tcgcommunity}
+      POSTGRES_USER: ${POSTGRES_USER:-tcg}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
+    #ports:
+    #  - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - tcg-network
+
+  backend:
+  image: ${BACKEND_IMAGE:-tcg-community-back:1.0.0}
+  container_name: tcg-community-backend
+  restart: unless-stopped
+
+  environment:
+    # Spring
+    SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?Debes definir SPRING_PROFILES_ACTIVE}
+    SERVER_PORT: 8080
+
+    # Base de datos
+    SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tcgcommunity}
+    SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-tcg}
+    SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
+
+    # Seguridad
+    JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET}
+    FRONTEND_URL: ${FRONTEND_URL:?Debes definir FRONTEND_URL}
+    REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-true}
+
+    # Google
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+
+    # Email
+    MAIL_PROVIDER: ${MAIL_PROVIDER:-log}
+    MAIL_FROM: ${MAIL_FROM:-no-reply@tcgcommunity.local}
+
+    SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+    SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+    SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+    SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+    SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+    SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
+
+    # Logging
+    LOG_FILE: ${LOG_FILE:-logs/backend.log}
+
+  ports:
+    - "${BACKEND_PORT:-8080}:8080"
+
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+  expose:
+    - "8080"
+
+  networks:
+    - tcg-network
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-tcgcommunity-front-app:1.0.0}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
+      API_DEV: ${API_DEV:-}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - tcg-network
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+
+volumes:
+  pgdata:
+
+networks:
+  tcg-network:
+    driver: bridge
