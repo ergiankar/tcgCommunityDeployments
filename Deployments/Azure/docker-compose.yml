@@ -109,8 +109,14 @@ services:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      # La misma clave que el backend (PHOTO_VERIFICATION_SECRET): con ella el servidor web firma las fotos que ha
+      # comprobado contra la imagen oficial. Sin ella, en producción ninguna foto queda verificada.
+      PHOTO_VERIFICATION_SECRET: ${PHOTO_VERIFICATION_SECRET}
       API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
       API_DEV: ${API_DEV:-}
+    # Catálogo, imágenes oficiales y huellas de las cartas: persisten entre despliegues (ver README)
+    volumes:
+      - tcg-data:/app/data
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
@@ -141,6 +147,7 @@ services:
       - tcg-network
 volumes:
   pgdata:
+  tcg-data:
 
 networks:
   tcg-network:

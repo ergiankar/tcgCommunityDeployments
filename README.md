@@ -27,10 +27,25 @@ El navegador solo habla con el frontend. Es el servidor de Next.js quien llama a
 Cosas que ya sabemos de la aplicación y que afectan al despliegue:
 
 - **Solo una instancia del backend por ahora.** El límite de peticiones por minuto vive en la memoria del backend; con varias instancias haría falta un almacén compartido (por ejemplo, Redis).
-- **El disco del servidor del frontend no es permanente.** Las imágenes de cartas que se descargan solas se guardan en `data/card-images`; si el servidor se reinicia, se vuelven a descargar.
+- **Los datos de cartas del frontend viven en un volumen.** El volumen `tcg-data` se monta en `/app/data` y guarda el catálogo (`card-catalog.json`), las huellas visuales (`card-fingerprints.json`) y las imágenes oficiales que el servidor descarga solo (`card-images/`). Persiste entre despliegues, pero los dos ficheros JSON hay que copiarlos a mano la primera vez (ver abajo).
 - **La cámara y la ubicación del navegador solo funcionan por `https`.** Es necesario un certificado en el dominio público.
 - **El backend ejecuta tareas periódicas** (por ejemplo, marcar como caducadas las publicaciones), así que debe estar siempre encendido.
 - **Las variables de entorno y los secretos** de cada pieza se describen en su propio repositorio.
+
+## Copiar el catálogo y las huellas de cartas (a mano)
+
+Los ficheros `card-catalog.json` y `card-fingerprints.json` los genera el proyecto del frontend en local (`npm run catalog` y
+`npm run fingerprints`) y no van a Git. Con los contenedores levantados, se copian al volumen una vez, y de nuevo cuando salgan
+sets nuevos:
+
+```bash
+docker compose --env-file Deployments/.env -f Deployments/docker-compose.yml cp ./card-catalog.json frontend:/app/data/card-catalog.json
+docker compose --env-file Deployments/.env -f Deployments/docker-compose.yml cp ./card-fingerprints.json frontend:/app/data/card-fingerprints.json
+docker compose --env-file Deployments/.env -f Deployments/docker-compose.yml restart frontend
+```
+
+El reinicio hace falta porque el servidor carga ambos ficheros en memoria la primera vez que los usa. Sin ellos la app sigue
+funcionando, pero con un catálogo reducido y sin el reconocimiento visual de fotos.
 
 ## Reglas del repositorio
 

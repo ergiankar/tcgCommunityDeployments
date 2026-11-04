@@ -43,6 +43,10 @@ COPY --from=builder --chown=nextjs:nodejs \
 COPY --from=builder --chown=nextjs:nodejs \
     /app/.next/static ./.next/static
 
+# Datos que la app lee y escribe en ejecución (catálogo de cartas, imágenes oficiales descargadas y huellas visuales).
+# En producción se monta aquí un volumen: un volumen nuevo hereda el dueño de esta carpeta, así que `nextjs` puede escribir.
+RUN mkdir -p /app/data     && chown nextjs:nodejs /app/data
+
 USER nextjs
 
 EXPOSE 3000
