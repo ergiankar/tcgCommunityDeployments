@@ -39,21 +39,55 @@ services:
 
   backend:
     image: ${BACKEND_IMAGE:-tcg-community-back:1.0.0}
+    container_name: tcg-community-backend
+    restart: unless-stopped
+
     environment:
+      # Spring
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?Debes definir SPRING_PROFILES_ACTIVE}
       SERVER_PORT: 8080
+
+      # Base de datos
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tcgcommunity}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-tcg}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
+
+      # Seguridad
       JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:?Debes definir FRONTEND_URL}
+      REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-true}
+      BIRD_API_KEY: ${BIRD_API_KEY:?Debes añadir la API KEY de Bird}
+
+      # Google
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+
+      # Email
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-log}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@tcgcommunity.local}
+
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
+
+      PHOTO_VERIFICATION_SECRET: ${PHOTO_VERIFICATION_SECRET}
+      PHOTO_VERIFICATION_TRUST_CLIENT_FLAG: ${PHOTO_VERIFICATION_TRUST_CLIENT_FLAG:-true}
+
+      # Logging
+      LOG_FILE: ${LOG_FILE:-logs/backend.log}
+
     ports:
       - "${BACKEND_PORT:-8080}:8080"
+
     depends_on:
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+
     expose:
       - "8080"
+
     networks:
       - tcg-network
 
