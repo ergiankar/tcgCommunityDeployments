@@ -112,6 +112,8 @@ services:
       # La misma clave que el backend (PHOTO_VERIFICATION_SECRET): con ella el servidor web firma las fotos que ha
       # comprobado contra la imagen oficial. Sin ella, en producción ninguna foto queda verificada.
       PHOTO_VERIFICATION_SECRET: ${PHOTO_VERIFICATION_SECRET}
+      # Sin él, la pantalla de acceso no enseña el botón de Google (el mismo identificador que el backend)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
       API_DEV: ${API_DEV:-}
     # Catálogo, imágenes oficiales y huellas de las cartas: persisten entre despliegues (ver README)
