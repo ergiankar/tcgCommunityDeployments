@@ -69,14 +69,18 @@ cp "$DOCKERIGNORE" "${SOURCE_DIR}/.dockerignore"
 
 IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 COMMIT="$(git -C "$SOURCE_DIR" rev-parse --short HEAD)"
+# Fuerza la regeneración de los datos remotos sin invalidar la caché de npm.
+CARD_DATA_BUILD_ID="${CARD_DATA_BUILD_ID:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 
 echo
 echo "Construyendo imagen: $IMAGE"
 echo "Commit del frontend: $COMMIT"
+echo "Datos de cartas: $CARD_DATA_BUILD_ID"
 
 docker buildx build \
   --platform linux/amd64 \
   --file "$DOCKERFILE" \
+  --build-arg "CARD_DATA_BUILD_ID=$CARD_DATA_BUILD_ID" \
   --tag "$IMAGE" \
   --push \
   "$SOURCE_DIR"

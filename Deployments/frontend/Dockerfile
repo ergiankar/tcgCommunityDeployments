@@ -19,6 +19,14 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# El catálogo y las huellas se generan durante la construcción, donde hay acceso
+# a Internet. Así la imagen final no depende de que se ejecuten scripts en el
+# servidor de despliegue.
+ARG CARD_DATA_BUILD_ID
+RUN echo "Generando datos de cartas: ${CARD_DATA_BUILD_ID}" \
+    && npm run catalog \
+    && npm run fingerprints
+
 RUN npm run build
 
 # 3. Ejecución
@@ -43,9 +51,16 @@ COPY --from=builder --chown=nextjs:nodejs \
 COPY --from=builder --chown=nextjs:nodejs \
     /app/.next/static ./.next/static
 
-# Datos que la app lee y escribe en ejecución (catálogo de cartas, imágenes oficiales descargadas y huellas visuales).
-# En producción se monta aquí un volumen: un volumen nuevo hereda el dueño de esta carpeta, así que `nextjs` puede escribir.
-RUN mkdir -p /app/data     && chown nextjs:nodejs /app/data
+# Datos de solo lectura generados durante la construcción.
+COPY --from=builder --chown=nextjs:nodejs \
+    /app/data/card-catalog.json ./data/card-catalog.json
+
+COPY --from=builder --chown=nextjs:nodejs \
+    /app/data/card-fingerprints.json ./data/card-fingerprints.json
+
+# La caché de imágenes se guarda en un volumen independiente en producción.
+RUN mkdir -p /app/data/card-images \
+    && chown -R nextjs:nodejs /app/data
 
 USER nextjs
 

@@ -102,9 +102,10 @@ services:
       PHOTO_VERIFICATION_SECRET: ${PHOTO_VERIFICATION_SECRET}
       API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
       API_DEV: ${API_DEV:-}
-    # Catálogo, imágenes oficiales y huellas de las cartas: persisten entre despliegues (ver README)
+    # Solo las imágenes descargadas se conservan entre despliegues. El catálogo y
+    # las huellas ya vienen incluidos en la imagen que se está ejecutando.
     volumes:
-      - tcg-data:/app/data
+      - tcg-data:/app/data/card-images
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
