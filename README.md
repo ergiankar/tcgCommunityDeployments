@@ -11,6 +11,7 @@ Repositorio para los **despliegues en Azure** de tcgCommunity: la infraestructur
 | Frontend | [tcgCommunity](https://github.com/ergiankar/tcgCommunity) | Next.js 16 (TypeScript). Trae su `Dockerfile` y `build-docker.sh`. |
 | Backend | [tcgCommunityBackend](https://github.com/ergiankar/tcgCommunityBackend) | Java 21 con Spring Boot. Aplica las migraciones de Flyway al arrancar. |
 | Base de datos | — | PostgreSQL |
+| Secretos | — | OpenBao (KV v2) |
 
 El navegador solo habla con el frontend. Es el servidor de Next.js quien llama al backend, y su dirección va en la variable `API_BASE_URL` del frontend.
 
@@ -19,7 +20,6 @@ El navegador solo habla con el frontend. Es el servidor de Next.js quien llama a
 - Herramienta de infraestructura como código (Bicep, Terraform u otra).
 - Entornos (por ejemplo, desarrollo y producción) y cómo se nombran.
 - Cómo se publica: a mano, o con CI/CD desde GitHub Actions.
-- Dónde se guardan los secretos (por ejemplo, Azure Key Vault).
 - Dónde se guardan las fotos de las cartas (hoy, dentro de la base de datos).
 
 ## A tener en cuenta al desplegar
@@ -51,3 +51,54 @@ un despliegue sin catálogo completo o sin reconocimiento visual.
 ## Comando de ejcución
 
 - docker compose --env-file Deployments/.env -f Deployments/docker-compose.yml up -d
+
+## Inicializar OpenBao
+
+OpenBao se ejecuta con almacenamiento Raft persistente y solo es accesible desde
+la red interna de Docker. En el primer despliegue hay que inicializarlo y
+desbloquearlo antes de levantar el backend. Conserva las claves de desbloqueo y
+el token raíz en un gestor de secretos externo; no los copies al archivo `.env`.
+
+```sh
+cd Deployments
+docker compose up -d openbao
+docker compose exec openbao bao operator init
+# Ejecuta este comando tres veces, cada una con una clave distinta del paso anterior.
+docker compose exec openbao bao operator unseal
+```
+
+Con el token raíz temporalmente disponible en la sesión, crea el motor KV v2, la
+política del backend y un token de solo lectura. Sustituye los valores de ejemplo
+por los secretos reales:
+
+```sh
+export BAO_TOKEN='token-raiz-guardado-fuera-del-repositorio'
+docker compose exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN openbao \
+  bao secrets enable -path=tcgcommunity kv-v2
+docker compose cp openbao/backend-policy.hcl openbao:/tmp/backend-policy.hcl
+docker compose exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN openbao \
+  bao policy write tcg-community-backend /tmp/backend-policy.hcl
+docker compose exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN openbao \
+  bao token create -policy=tcg-community-backend -orphan -period=24h
+```
+
+Guarda el valor `token` del último comando como `OPENBAO_BACKEND_TOKEN` en
+`Deployments/.env`. A continuación, carga los secretos del backend (las claves
+usan los nombres de propiedad de Spring):
+
+```sh
+docker compose exec -e BAO_ADDR=http://127.0.0.1:8200 -e BAO_TOKEN openbao \
+  bao kv put tcgcommunity/tcg-community-backend \
+  spring.datasource.password='contraseña-postgres' \
+  app.security.jwt.secret='secreto-jwt-de-al-menos-32-bytes' \
+  app.photo-verification.secret='secreto-de-verificacion-de-fotos' \
+  app.whatsapp.bird.api-key='bk_eu1_...' \
+  spring.mail.password='contraseña-smtp'
+```
+
+Finalmente, arranca el conjunto completo. El backend espera a que OpenBao esté
+inicializado y desbloqueado y luego importa esos secretos automáticamente:
+
+```sh
+docker compose up -d
+```

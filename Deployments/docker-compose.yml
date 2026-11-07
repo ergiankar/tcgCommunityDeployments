@@ -24,7 +24,8 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # Un volumen nuevo fuerza la inicialización de PostgreSQL desde cero al levantar el despliegue.
+      - pgdata-prd:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -34,6 +35,29 @@ services:
       retries: 10
       start_period: 5s
     restart: unless-stopped
+    networks:
+      - tcg-network
+
+  openbao:
+    image: openbao/openbao:2.7.2
+    container_name: tcg-community-openbao
+    command: server -config=/openbao/config/openbao.hcl
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - ./openbao/openbao.hcl:/openbao/config/openbao.hcl:ro
+      - openbao-data:/openbao/data
+    # El puerto no se publica en el host: solo el backend de esta red puede acceder a OpenBao.
+    expose:
+      - "8200"
+    healthcheck:
+      # `bao status` devuelve 0 únicamente después de inicializar y desbloquear el almacén.
+      test: ["CMD-SHELL", "BAO_ADDR=http://127.0.0.1:8200 bao status >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     networks:
       - tcg-network
 
@@ -50,13 +74,16 @@ services:
       # Base de datos
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tcgcommunity}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-tcg}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Debes definir POSTGRES_PASSWORD}
-
-      # Seguridad
-      JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET}
+      # Los secretos del backend se leen del motor KV v2 de OpenBao.
+      SPRING_CONFIG_IMPORT: vault://
+      SPRING_CLOUD_VAULT_URI: http://openbao:8200
+      # Se deja vacío durante el bootstrap para poder levantar solo OpenBao;
+      # el backend no arrancará hasta definir este token limitado.
+      SPRING_CLOUD_VAULT_TOKEN: ${OPENBAO_BACKEND_TOKEN:-}
+      SPRING_CLOUD_VAULT_KV_BACKEND: tcgcommunity
+      SPRING_CLOUD_VAULT_KV_APPLICATION_NAME: tcg-community-backend
       FRONTEND_URL: ${FRONTEND_URL:?Debes definir FRONTEND_URL}
       REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-true}
-      BIRD_API_KEY: ${BIRD_API_KEY:?Debes añadir la API KEY de Bird}
 
       # Google
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -68,11 +95,9 @@ services:
       SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
       SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
-      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
 
-      PHOTO_VERIFICATION_SECRET: ${PHOTO_VERIFICATION_SECRET}
       PHOTO_VERIFICATION_TRUST_CLIENT_FLAG: ${PHOTO_VERIFICATION_TRUST_CLIENT_FLAG:-true}
 
       # Logging
@@ -83,6 +108,8 @@ services:
 
     depends_on:
       postgres:
+        condition: service_healthy
+      openbao:
         condition: service_healthy
 
     expose:
@@ -119,8 +146,9 @@ services:
       - tcg-network
 
 volumes:
-  pgdata:
+  pgdata-prd:
   tcg-data:
+  openbao-data:
 
 networks:
   tcg-network:
